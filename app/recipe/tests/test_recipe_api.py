@@ -1,4 +1,4 @@
-from django.contrin.auth import get_user_model
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
@@ -9,7 +9,7 @@ from core.models import Recipe
 
 from recipe.serializers import RecipeSerializer
 
-RECIPES_URL = reverse('recipe:recipe:list')
+RECIPES_URL = reverse('recipe:recipe-list')
 
 def sample_recipe(user, **params):
     """create and return a sample recipe"""
@@ -27,7 +27,7 @@ class PublicRecipeApiTests(TestCase):
     """Test unauthenticated recipe API access"""
 
     def setUp(self):
-        self.client = APIClient
+        self.client = APIClient()
     
     def test_auth_required(self):
         """Test that authentication is required"""
@@ -42,6 +42,35 @@ class PrivateRecipeApiTests(TestCase):
         self.client = APIClient()
         self.user = get_user_model().objects.create_user(
             'alex@yahoo.com'
-            'test password'
+            'testpassword'
         )
         self.client.force_authenticate(self.user)
+
+    def test_retrieve_recipe(self):
+        """Test retrieving a list of recipe"""
+        sample_recipe(user=self.user)
+        sample_recipe(user=self.user)
+        
+        res = self.client.get(RECIPES_URL)
+
+        recipes = Recipe.objects.all().order_by('-id')
+        serializer = RecipeSerializer(recipes, many=True)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data, serializer.data)
+
+    def test_recipe_limited_to_user(self):
+        """Test retrieving recipes for user"""
+        user2 = get_user_model().objects.create_user(
+            'name@yahoo.com',
+            'password123'
+        )
+
+        sample_recipe(user=user2)
+        sample_recipe(user=self.user)
+
+        res = self.client.get(RECIPES_URL)
+
+        recipes = Recipe.objects.filter(user=self.user)
+        serializer = RecipeSerializer(recipes, many=True)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data, serializer.data)
