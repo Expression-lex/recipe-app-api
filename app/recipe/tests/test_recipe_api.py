@@ -116,20 +116,7 @@ class PrivateRecipeApiTests(TestCase):
         recipe = Recipe.objects.get(id=res.data['id'])
         # for key in payload.keys():
         #     self.assertIn(payload[key], recipe.key)
-    # def test_create_basic_recipe(self):
-    #     """Test creating recipe"""
-    #     payload = {
-    #         'title': 'Chocolate cheesecake',
-    #         'time_minutes': 30,
-    #         'price': 5.00
-    #     }
-    #     res = self.client.post(RECIPES_URL, payload)
-
-    #     self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-    #     recipe = Recipe.objects.get(id=res.data['id'])
-    #     for key in payload.keys():
-    #         self.assertEqual(payload[key], getattr(recipe, key))
-
+    
     def test_create_recipe_with_tags(self):
         """TEst creating a recipe with tags"""
         tag1 = sample_tag(user=self.user, name='Vegan')
@@ -167,3 +154,19 @@ class PrivateRecipeApiTests(TestCase):
         self.assertEqual(ingredients.count(), 2)
         self.assertIn(ingredient1, ingredients)
         self.assertIn(ingredient2, ingredients)
+
+    def test_partial_update_recipe(self):
+        """Test updating a recipe with patch"""
+        recipe = sample_recipe(user=self.user)
+        recipe.tags.add(sample_tag(user=self.name))
+        new_tag = sample_tag(user=self.user, name='curry')
+
+        payload = {'title': 'Chicken tik', 'tags': {new_tag.id}}
+        url = detail_url(recipe.id)
+        self.client.patch(url, payload)
+
+        recipe.refresh_from_db()
+        self.assertEqual(recipe.title, payload['title'])
+        tags = recipe.tags.all()
+        self.assertEqual(len(tags), 1)
+        self.assertIn(new_tag, tags)
